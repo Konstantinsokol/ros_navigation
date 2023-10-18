@@ -44,7 +44,7 @@ class angl_len_server():
         elif front_y == back_y and front_x > back_x:
             angle = 180
         else:
-            angle = math.degrees(math.atan2(front_y - back_y, front_x - back_x))
+            angle = math.atan2(front_y - back_y, front_x - back_x)
         msg = TwistWithCovarianceStamped()
         msg.header.stamp = rospy.Time.now()
         msg.header.frame_id = "base_link"
