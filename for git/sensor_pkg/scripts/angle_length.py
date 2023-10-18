@@ -1,67 +1,66 @@
 #!/usr/bin/python3
 import rospy
-from robot_msgs.msg import peers
-from setting_pkg.const import *
-import math
-from dataclasses import dataclass
-from geometry_msgs.msg import TwistWithCovarianceStamped, PointStamped
+from geometry_msgs.msg import TwistWithCovarianceStamped
+import os
+import sys
+import time
+import smbus
+import numpy as np
 
-@dataclass
-class tag():
-    id: str
-    x: float = None
-    y: float = None
+from imusensor.MPU9250 import MPU9250
+from imusensor.filters import kalman 
 
-fronttag = tag("00b4")
-backtag = tag("c30c")
+def composeMessage(count, roll, pitch, yaw, accel_x, accel_y, accel_z):
+  
+  msg.header.stamp = rospy.Time.now()
+  msg.header.frame_id = "base_link"
+  msg.header.seq = count
 
-class angl_len_server():
+  msg.twist.twist.linear.x = accel_x
+  msg.twist.twist.linear.y = accel_y
+  msg.twist.twist.linear.z = accel_z
 
-    rospy.init_node(ROBO_PATHPLANING_NODE_NAME)
-    r = rospy.Rate(60)
-    count = 0
-    def __init__(self) -> None:
-        rospy.loginfo(
-            f"{rospy.get_name()} started")
-        rospy.Subscriber('/peers', PointStamped, self.handel_peers)
-        self.yaw_peers = rospy.Publisher('/corner_from_peers_link', TwistWithCovarianceStamped, queue_size=10)
-        rospy.spin()
-
-    def Response(self) -> None:
-
-        rospy.loginfo(f"{rospy.get_name()}: fronttag: {fronttag.x}, {fronttag.y}; backtag: {backtag.x}, {backtag.y};")
-        # Координаты точек
-        front_x = round(fronttag.x, 2)
-        front_y = round(fronttag.y ,2)
-
-        back_x = round(backtag.x, 2)
-        back_y = round(backtag.y ,2)
-
-        if front_x == back_x and front_y > back_y:
-            angle = 90
-        if front_x == back_x and front_y < back_y:
-            angle = -90
-        elif front_y == back_y and front_x > back_x:
-            angle = 180
-        else:
-            angle = math.atan2(front_y - back_y, front_x - back_x)
-        msg = TwistWithCovarianceStamped()
-        msg.header.stamp = rospy.Time.now()
-        msg.header.frame_id = "base_link"
-        msg.header.seq = self.count
-        msg.twist.twist.angular.z = angle
-        self.yaw_peers.publish(msg)
-        self.count += 1
-        self.r.sleep()
-
-    def handel_peers(self,data) -> None:
-        rospy.loginfo(
-            f" ID:{data.header.frame_id}, x:{data.point.x}, y:{data.point.y}")
-        if data.header.frame_id == fronttag.id:
-            fronttag.x, fronttag.y = data.point.x, data.point.y
-        elif data.header.frame_id == backtag.id:
-            backtag.x, backtag.y = data.point.x, data.point.y
-        self.Response()
+  msg.twist.twist.angular.x = roll
+  msg.twist.twist.angular.y = pitch
+  msg.twist.twist.angular.z = yaw
+  msg.twist.covariance = [0.001, 0, 0, 0, 0, 0,
+                          0, 0.001, 0, 0, 0, 0,
+                          0, 0, 0.001, 0, 0, 0,
+                          0, 0, 0, 0.001, 0, 0,
+                          0, 0, 0, 0, 0.001, 0,
+                          0, 0, 0, 0, 0, 0.001]
+  imu_sensor.publish(msg)
 
 if __name__ == "__main__":
-    angl_len_server()
+
+  rospy.init_node('imu_sensor')
+  r = rospy.Rate(60)
+  imu_sensor = rospy.Publisher('/imu_sensor_link', TwistWithCovarianceStamped, queue_size=10)
+  msg = TwistWithCovarianceStamped()
+  address = 0x68
+  bus = smbus.SMBus(1)
+  imu = MPU9250.MPU9250(bus, address)
+  imu.begin()
+  sensorfusion = kalman.Kalman()
+  imu.loadCalibDataFromFile("/home/ubuntu/Roboprint/Autriger/python/calib1.json")
+  imu.readSensor()
+  imu.computeOrientation()
+  sensorfusion.roll = imu.roll
+  sensorfusion.pitch = imu.pitch
+  sensorfusion.yaw = imu.yaw
+
+  while not rospy.is_shutdown():
+    count = 0
+    currTime = time.time()
+    imu.readSensor()
+    imu.computeOrientation()
+    newTime = time.time()
+    dt = newTime - currTime
+    currTime = newTime
+
+    sensorfusion.computeAndUpdateRollPitchYaw(imu.AccelVals[0], imu.AccelVals[1], imu.AccelVals[2], imu.GyroVals[0], imu.GyroVals[1], imu.GyroVals[2],\
+                          imu.MagVals[0], imu.MagVals[1], imu.MagVals[2], dt)
+ 
+    composeMessage(count, sensorfusion.pitch, sensorfusion.roll, imu.yaw+40,imu.AccelVals[1], imu.AccelVals[0], imu.AccelVals[2])
+    count += 1
+    r.sleep()
