@@ -1,0 +1,37 @@
+<launch>
+
+<!-- Map server -->
+<arg name="map_file" default="$(find localization_pkg)/maps/map.yaml"/>
+<node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)">
+</node>
+
+<!-- Peers and websocket -->
+<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
+<node name="peers_broadcaster" pkg="sensor_pkg" type="peers_broadcaster.py" output="screen">
+    <param name="front_tag_ID" value="00b4" />
+    <param name="back_tag_ID" value="c30c" />
+</node>
+
+<!--TF-static-transform 
+<node pkg="tf2_ros" type="static_transform_publisher" name="base_link__optical_flow_link" args="0.3 0 0 0 0 0 base_link optical_flow_link" />-->
+<node pkg="tf2_ros" type="static_transform_publisher" name="base_link__front_tag" args="1.0 0 0 0 0 0 base_link front_tag_link" />
+<node pkg="tf2_ros" type="static_transform_publisher" name="base_link__back_tag" args="-1.0 0 0 0 0 0 base_link back_tag_link" />
+
+<!--Node for navigation -->
+<node pkg="sensor_pkg" type="angle_lenght.py" name="angle_for_peers"/>
+<node pkg="sensor_pkg" type="Imu_sensor.py" name="imu_sensor"/>
+<!--<node pkg="sensor_pkg" type="optical_flow_node.py" name="optical_flow_node"/>-->
+
+<!--robot_localization_ros -->
+<node pkg="robot_localization" type="ekf_localization_node" name="robot_localization_ekf_node_map" clear_params="true">
+<rosparam command="load" file="$(find localization_pkg)/params/ekf_map.yaml" />
+<remap from="odometry/filtered" to="odometry/filtered_map"/>
+<remap from="accel/filtered" to="accel/filtered_map"/>
+</node>
+
+<node pkg="robot_localization" type="ekf_localization_node" name="robot_localization_ekf_node_odom" clear_params="true">
+<rosparam command="load" file="$(find localization_pkg)/params/ekf_odom.yaml" />
+<remap from="odometry/filtered" to="odometry/odometry_odom"/>
+</node>
+
+</launch>

@@ -1,0 +1,7 @@
+<launch>
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
+  <node name="peers_broadcaster" pkg="sensor_pkg" type="peers_broadcaster.py" output="screen">
+      <param name="front_tag_ID" value="00b4" />
+      <param name="back_tag_ID" value="c30c" />
+  </node>
+</launch>
