@@ -7,15 +7,16 @@
 
 <!-- Peers and websocket -->
 <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
+
 <node name="peers_broadcaster" pkg="sensor_pkg" type="peers_broadcaster.py" output="screen">
     <param name="front_tag_ID" value="00b4" />
     <param name="back_tag_ID" value="c30c" />
 </node>
 
 <!--TF-static-transform 
+<node pkg="tf2_ros" type="static_transform_publisher" name="base_link__back_tag" args="-1.0 0 0 0 0 0 base_link back_tag_link" />
 <node pkg="tf2_ros" type="static_transform_publisher" name="base_link__optical_flow_link" args="0.3 0 0 0 0 0 base_link optical_flow_link" />-->
 <node pkg="tf2_ros" type="static_transform_publisher" name="base_link__front_tag" args="1.0 0 0 0 0 0 base_link front_tag_link" />
-<node pkg="tf2_ros" type="static_transform_publisher" name="base_link__back_tag" args="-1.0 0 0 0 0 0 base_link back_tag_link" />
 
 <!--Node for navigation -->
 <node pkg="sensor_pkg" type="angle_lenght.py" name="angle_for_peers"/>
