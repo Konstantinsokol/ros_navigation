@@ -13,7 +13,7 @@ from imusensor.filters import kalman
 def composeMessage(count, angular_z, accel_x, accel_y):
   
   msg.header.stamp = rospy.Time.now()
-  msg.header.frame_id = "base_link"
+  msg.header.frame_id = "mpu9250"
   msg.header.seq = count
 
   msg.linear_acceleration.x = accel_x
@@ -50,6 +50,6 @@ if __name__ == "__main__":
     sensorfusion.computeAndUpdateRollPitchYaw(imu.AccelVals[0], imu.AccelVals[1], imu.AccelVals[2], imu.GyroVals[0], imu.GyroVals[1], imu.GyroVals[2],\
                           imu.MagVals[0], imu.MagVals[1], imu.MagVals[2], dt)
  
-    composeMessage(-count,imu.GyroVals[2] ,-imu.AccelVals[1], -imu.AccelVals[0])
+    composeMessage(count,-imu.GyroVals[2] ,-imu.AccelVals[1], -imu.AccelVals[0])
     count += 1
     r.sleep()
